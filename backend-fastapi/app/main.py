@@ -5,8 +5,16 @@ import psycopg
 import redis
 from fastapi import FastAPI, HTTPException
 from psycopg.rows import dict_row
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Uptime Monitor API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 REDIS_URL = os.getenv("REDIS_URL", "")
