@@ -4,11 +4,13 @@ import time
 import redis
 import requests
 from django.core.management.base import BaseCommand
-from django.db import close_old_connections
+from django.db import IntegrityError, close_old_connections
+from django.utils import timezone
 
-from monitors.models import CheckResult, Monitor
+from monitors.models import CheckResult, Incident, Monitor
 
 QUEUE = "checks"
+FAILURES_BEFORE_INCIDENT = 3
 
 
 def make_redis():
@@ -49,20 +51,61 @@ class Command(BaseCommand):
 
     def check_monitor(self, monitor):
         start = time.monotonic()
+        status_code = None
+        error = ""
+
         try:
             resp = requests.get(monitor.url, timeout=10)
-            elapsed = int((time.monotonic() - start) * 1000)
-            CheckResult.objects.create(
-                monitor=monitor,
-                is_up=resp.status_code < 400,
-                status_code=resp.status_code,
-                response_time_ms=elapsed,
-            )
-            self.stdout.write(f"{monitor.name}: {resp.status_code} in {elapsed}ms")
+            status_code = resp.status_code
+            is_up = resp.status_code < 400
+            if not is_up:
+                error = f"HTTP {resp.status_code}"
         except requests.RequestException as e:
-            CheckResult.objects.create(
-                monitor=monitor,
-                is_up=False,
-                error=str(e)[:255],
-            )
-            self.stdout.write(f"{monitor.name}: DOWN ({type(e).__name__})")
+            is_up = False
+            error = f"{type(e).__name__}: {e}"[:255]
+
+        elapsed = int((time.monotonic() - start) * 1000)
+
+        CheckResult.objects.create(
+            monitor=monitor,
+            is_up=is_up,
+            status_code=status_code,
+            response_time_ms=elapsed if status_code is not None else None,
+            error=error[:255],
+        )
+
+        if is_up:
+            self.stdout.write(f"{monitor.name}: {status_code} in {elapsed}ms")
+        else:
+            self.stdout.write(f"{monitor.name}: DOWN ({error[:80]})")
+
+        self.update_incident(monitor, is_up, error)
+
+    def update_incident(self, monitor, is_up, error):
+        open_incident = Incident.objects.filter(
+            monitor=monitor, resolved_at__isnull=True
+        ).first()
+
+        if is_up:
+            if open_incident:
+                open_incident.resolved_at = timezone.now()
+                open_incident.save(update_fields=["resolved_at"])
+                self.stdout.write(f"RESOLVED: {monitor.name} is back up")
+            return
+
+        if open_incident:
+            return  # already reported, don't open a second one
+
+        recent = list(
+            CheckResult.objects.filter(monitor=monitor).order_by("-checked_at")[
+                :FAILURES_BEFORE_INCIDENT
+            ]
+        )
+        if len(recent) == FAILURES_BEFORE_INCIDENT and not any(
+            c.is_up for c in recent
+        ):
+            try:
+                Incident.objects.create(monitor=monitor, reason=error[:255])
+                self.stdout.write(f"INCIDENT OPENED: {monitor.name} ({error[:80]})")
+            except IntegrityError:
+                pass  # another worker opened it first
