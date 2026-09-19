@@ -92,7 +92,7 @@ def status_all():
     data = to_json_safe(query(STATUS_SQL))
 
     try:
-        cache.set("status:all", json.dumps(data), ex=10)
+        cache.set("status:all", json.dumps(data), ex=3)
     except redis.RedisError:
         pass
 

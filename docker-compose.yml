@@ -52,6 +52,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./backend-django:/code
     depends_on:
@@ -62,6 +63,7 @@ services:
   
   scheduler:
     build: ./backend-django
+    restart: unless-stopped
     command: python manage.py run_scheduler
     environment:
       PYTHONUNBUFFERED: "1"
@@ -80,6 +82,7 @@ services:
 
   worker:
     build: ./backend-django
+    restart: unless-stopped
     command: python manage.py run_worker
     environment:
       PYTHONUNBUFFERED: "1"
