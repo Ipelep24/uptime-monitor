@@ -1,11 +1,12 @@
 import json
 import os
 
+import jwt
 import psycopg
 import redis
-from fastapi import FastAPI, HTTPException
-from psycopg.rows import dict_row
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from psycopg.rows import dict_row
 
 app = FastAPI(title="Uptime Monitor API")
 
@@ -18,6 +19,7 @@ app.add_middleware(
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 REDIS_URL = os.getenv("REDIS_URL", "")
+JWT_SECRET = os.getenv("JWT_SECRET", "")
 
 cache = redis.Redis.from_url(
     REDIS_URL, socket_timeout=5, socket_connect_timeout=3
@@ -32,6 +34,23 @@ def query(sql, params=()):
 def to_json_safe(rows):
     # converts datetimes and other non-JSON types to strings
     return json.loads(json.dumps(rows, default=str))
+
+
+def current_user_id(authorization: str | None = Header(default=None)) -> int:
+    """Reads the Bearer token, verifies it, and returns the user's id."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+
+    token = authorization.removeprefix("Bearer ")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if payload.get("token_type") != "access":
+        raise HTTPException(status_code=401, detail="Wrong token type")
+
+    return int(payload["user_id"])
 
 
 @app.get("/health")
@@ -74,25 +93,27 @@ left join lateral (
     from monitors_checkresult
     where monitor_id = m.id and checked_at > now() - interval '24 hours'
 ) stats on true
-where m.is_active
+where m.is_active and m.owner_id = %s
 order by m.id
 """
 
 
 @app.get("/status")
-def status_all():
-    """Latest status of every active monitor, cached in Redis for 10 seconds."""
+def status_all(user_id: int = Depends(current_user_id)):
+    """Latest status of the logged-in user's monitors, cached briefly in Redis."""
+    key = f"status:{user_id}"
+
     try:
-        cached = cache.get("status:all")
+        cached = cache.get(key)
         if cached:
             return json.loads(cached)
     except redis.RedisError:
         pass  # if Redis is down, just skip the cache
 
-    data = to_json_safe(query(STATUS_SQL))
+    data = to_json_safe(query(STATUS_SQL, (user_id,)))
 
     try:
-        cache.set("status:all", json.dumps(data), ex=3)
+        cache.set(key, json.dumps(data), ex=3)
     except redis.RedisError:
         pass
 
@@ -100,12 +121,15 @@ def status_all():
 
 
 @app.get("/monitors/{monitor_id}/results")
-def monitor_results(monitor_id: int, limit: int = 20):
-    """Most recent check results for one monitor."""
+def monitor_results(
+    monitor_id: int, limit: int = 20, user_id: int = Depends(current_user_id)
+):
+    """Most recent check results for one of the user's monitors."""
     limit = max(1, min(limit, 200))
 
     monitor = query(
-        "select id, name, url from monitors_monitor where id = %s", (monitor_id,)
+        "select id, name, url from monitors_monitor where id = %s and owner_id = %s",
+        (monitor_id, user_id),
     )
     if not monitor:
         raise HTTPException(status_code=404, detail="Monitor not found")
