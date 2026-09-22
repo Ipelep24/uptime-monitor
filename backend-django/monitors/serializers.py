@@ -9,7 +9,7 @@ User = get_user_model()
 class MonitorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Monitor
-        fields = ["id", "name", "url", "interval_seconds", "is_active", "created_at"]
+        fields = ["id", "name", "url", "expected_status", "interval_seconds", "is_active", "created_at"]
         read_only_fields = ["id", "created_at"]
 
     def validate_interval_seconds(self, value):

@@ -45,6 +45,7 @@ export default function Home() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [interval, setIntervalSec] = useState(60);
+  const [expectedStatus, setExpectedStatus] = useState("200-299");
   const [formError, setFormError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -87,7 +88,7 @@ export default function Home() {
     try {
       const res = await authFetch(`${DJANGO}/monitors/`, {
         method: "POST",
-        body: JSON.stringify({ name, url, interval_seconds: interval }),
+        body: JSON.stringify({ name, url, expected_status: expectedStatus, interval_seconds: interval }),
       });
       if (!res.ok) {
         setFormError(await errorMessage(res, "Could not add monitor"));
@@ -141,9 +142,8 @@ export default function Home() {
 
       {!loading && !error && monitors.length > 0 && (
         <p
-          className={`mt-2 font-medium ${
-            allUp ? "text-green-600" : "text-red-600"
-          }`}
+          className={`mt-2 font-medium ${allUp ? "text-green-600" : "text-red-600"
+            }`}
         >
           {allUp ? "All systems operational" : "Some systems are down"}
         </p>
@@ -166,6 +166,12 @@ export default function Home() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           required
+        />
+        <input
+          className="rounded border bg-white p-2 text-black"
+          placeholder="200-299 (or 200-299,401)"
+          value={expectedStatus}
+          onChange={(e) => setExpectedStatus(e.target.value)}
         />
         <input
           className="rounded border bg-white p-2 text-black"
@@ -211,13 +217,12 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-3">
                 <span
-                  className={`rounded-full px-3 py-1 text-sm font-medium ${
-                    m.is_up === null
+                  className={`rounded-full px-3 py-1 text-sm font-medium ${m.is_up === null
                       ? "bg-gray-200 text-gray-700"
                       : m.is_up
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
                 >
                   {m.is_up === null ? "Pending" : m.is_up ? "Up" : "Down"}
                 </span>

@@ -12,6 +12,11 @@ class Monitor(models.Model):
 
     name = models.CharField(max_length=100)
     url = models.URLField()
+    expected_status = models.CharField(
+        max_length=50,
+        default="200-299",
+        help_text="Comma-separated codes or ranges considered 'up', e.g. 200-299,401",
+    )
     interval_seconds = models.PositiveIntegerField(default=60)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

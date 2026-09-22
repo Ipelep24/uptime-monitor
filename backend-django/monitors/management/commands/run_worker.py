@@ -12,6 +12,21 @@ from monitors.models import CheckResult, Incident, Monitor
 QUEUE = "checks"
 FAILURES_BEFORE_INCIDENT = 3
 
+def status_is_expected(status_code, expected: str) -> bool:
+    """Checks a status code against a spec like '200-299,401,403'."""
+    if status_code is None:
+        return False
+    for part in expected.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            low, high = part.split("-")
+            if int(low) <= status_code <= int(high):
+                return True
+        elif part.isdigit() and int(part) == status_code:
+            return True
+    return False
 
 def make_redis():
     return redis.Redis.from_url(
@@ -57,7 +72,7 @@ class Command(BaseCommand):
         try:
             resp = requests.get(monitor.url, timeout=10)
             status_code = resp.status_code
-            is_up = resp.status_code < 400
+            is_up = status_is_expected(resp.status_code, monitor.expected_status)
             if not is_up:
                 error = f"HTTP {resp.status_code}"
         except requests.RequestException as e:
