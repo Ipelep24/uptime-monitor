@@ -4,7 +4,7 @@ from .models import CheckResult, Incident, Monitor
 
 @admin.register(Monitor)
 class MonitorAdmin(admin.ModelAdmin):
-    list_display = ("name", "url", "expected_status", "interval_seconds", "is_active", "owner")
+    list_display = ("name", "url", "expected_status", "keyword", "interval_seconds", "is_active", "owner")
 
 @admin.register(CheckResult)
 class CheckResultAdmin(admin.ModelAdmin):

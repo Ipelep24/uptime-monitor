@@ -46,6 +46,7 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [interval, setIntervalSec] = useState(60);
   const [expectedStatus, setExpectedStatus] = useState("200-299");
+  const [keyword, setKeyword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -88,7 +89,7 @@ export default function Home() {
     try {
       const res = await authFetch(`${DJANGO}/monitors/`, {
         method: "POST",
-        body: JSON.stringify({ name, url, expected_status: expectedStatus, interval_seconds: interval }),
+        body: JSON.stringify({ name, url, expected_status: expectedStatus, keyword, interval_seconds: interval }),
       });
       if (!res.ok) {
         setFormError(await errorMessage(res, "Could not add monitor"));
@@ -151,7 +152,7 @@ export default function Home() {
 
       <form
         onSubmit={addMonitor}
-        className="mt-6 grid gap-2 rounded-lg border p-4 sm:grid-cols-[1fr_2fr_6rem_auto]"
+        className="w-[full] mt-6 grid gap-2 rounded-lg border p-4 sm:grid-cols-3"
       >
         <input
           className="rounded border bg-white p-2 text-black"
@@ -162,16 +163,15 @@ export default function Home() {
         />
         <input
           className="rounded border bg-white p-2 text-black"
-          placeholder="https://example.com"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          required
-        />
-        <input
-          className="rounded border bg-white p-2 text-black"
           placeholder="200-299 (or 200-299,401)"
           value={expectedStatus}
           onChange={(e) => setExpectedStatus(e.target.value)}
+        />
+        <input
+          className="rounded border bg-white p-2 text-black"
+          placeholder="Keyword (optional)"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
         />
         <input
           className="rounded border bg-white p-2 text-black"
@@ -181,10 +181,17 @@ export default function Home() {
           onChange={(e) => setIntervalSec(Number(e.target.value))}
           title="Check interval in seconds (min 30)"
         />
+        <input
+          className="rounded border col-span-2 bg-white p-2 text-black"
+          placeholder="https://example.com"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          required
+        />
         <button
           type="submit"
           disabled={adding}
-          className="rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+          className="rounded col-start-2 mt-[5px] bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
         >
           {adding ? "Adding..." : "Add"}
         </button>

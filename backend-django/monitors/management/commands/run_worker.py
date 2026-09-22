@@ -72,9 +72,18 @@ class Command(BaseCommand):
         try:
             resp = requests.get(monitor.url, timeout=10)
             status_code = resp.status_code
-            is_up = status_is_expected(resp.status_code, monitor.expected_status)
-            if not is_up:
+            status_ok = status_is_expected(resp.status_code, monitor.expected_status)
+
+            keyword_ok = True
+            if monitor.keyword:
+                keyword_ok = monitor.keyword in resp.text
+
+            is_up = status_ok and keyword_ok
+
+            if not status_ok:
                 error = f"HTTP {resp.status_code}"
+            elif not keyword_ok:
+                error = f"Keyword '{monitor.keyword}' not found"
         except requests.RequestException as e:
             is_up = False
             error = f"{type(e).__name__}: {e}"[:255]
