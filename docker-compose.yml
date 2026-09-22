@@ -92,6 +92,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/0
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
     volumes:
       - ./backend-django:/code
     depends_on:

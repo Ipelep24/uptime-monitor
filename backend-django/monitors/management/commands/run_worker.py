@@ -8,6 +8,7 @@ from django.db import IntegrityError, close_old_connections
 from django.utils import timezone
 
 from monitors.models import CheckResult, Incident, Monitor
+from monitors.notifications import notify_incident_opened, notify_incident_resolved
 
 QUEUE = "checks"
 FAILURES_BEFORE_INCIDENT = 3
@@ -115,6 +116,7 @@ class Command(BaseCommand):
                 open_incident.resolved_at = timezone.now()
                 open_incident.save(update_fields=["resolved_at"])
                 self.stdout.write(f"RESOLVED: {monitor.name} is back up")
+                notify_incident_resolved(monitor.name)
             return
 
         if open_incident:
@@ -131,5 +133,6 @@ class Command(BaseCommand):
             try:
                 Incident.objects.create(monitor=monitor, reason=error[:255])
                 self.stdout.write(f"INCIDENT OPENED: {monitor.name} ({error[:80]})")
+                notify_incident_opened(monitor.name, error[:255])
             except IntegrityError:
                 pass  # another worker opened it first

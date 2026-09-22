@@ -152,29 +152,29 @@ export default function Home() {
 
       <form
         onSubmit={addMonitor}
-        className="w-[full] mt-6 grid gap-2 rounded-lg border p-4 sm:grid-cols-3"
+        className="w-[full] mt-6 grid gap-2 rounded-lg border p-4 grid-cols-3"
       >
         <input
-          className="rounded border bg-white p-2 text-black"
+          className="rounded border sm:col-span-1 col-span-3 bg-white p-2 text-black"
           placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <input
-          className="rounded border bg-white p-2 text-black"
+          className="rounded border sm:col-span-1 col-span-3 bg-white p-2 text-black"
           placeholder="200-299 (or 200-299,401)"
           value={expectedStatus}
           onChange={(e) => setExpectedStatus(e.target.value)}
         />
         <input
-          className="rounded border bg-white p-2 text-black"
+          className="rounded border sm:col-span-1 col-span-3 bg-white p-2 text-black"
           placeholder="Keyword (optional)"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
         />
         <input
-          className="rounded border bg-white p-2 text-black"
+          className="rounded border sm:col-span-1 col-span-3 bg-white p-2 text-black"
           type="number"
           min={30}
           value={interval}
@@ -182,7 +182,7 @@ export default function Home() {
           title="Check interval in seconds (min 30)"
         />
         <input
-          className="rounded border col-span-2 bg-white p-2 text-black"
+          className="rounded border sm:col-span-2 col-span-3 bg-white p-2 text-black"
           placeholder="https://example.com"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -191,7 +191,7 @@ export default function Home() {
         <button
           type="submit"
           disabled={adding}
-          className="rounded col-start-2 mt-[5px] bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+          className="rounded sm:col-start-2 sm:col-span-1 col-span-3 mt-1.25 bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
         >
           {adding ? "Adding..." : "Add"}
         </button>
