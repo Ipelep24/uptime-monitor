@@ -1,5 +1,6 @@
 import os
 import time
+import json
 
 import redis
 import requests
@@ -99,12 +100,31 @@ class Command(BaseCommand):
             error=error[:255],
         )
 
+        self.publish_update(monitor, is_up, status_code, elapsed if status_code is not None else None)
+
         if is_up:
             self.stdout.write(f"{monitor.name}: {status_code} in {elapsed}ms")
         else:
             self.stdout.write(f"{monitor.name}: DOWN ({error[:80]})")
 
         self.update_incident(monitor, is_up, error)
+
+    def publish_update(self, monitor, is_up, status_code, response_time_ms):
+        try:
+            r = make_redis()
+            r.publish(
+                f"updates:{monitor.owner_id}",
+                json.dumps(
+                    {
+                        "monitor_id": monitor.id,
+                        "is_up": is_up,
+                        "status_code": status_code,
+                        "response_time_ms": response_time_ms,
+                    }
+                ),
+            )
+        except redis.RedisError:
+            pass  # live updates are a nice-to-have, never block the worker on this
 
     def update_incident(self, monitor, is_up, error):
         open_incident = Incident.objects.filter(

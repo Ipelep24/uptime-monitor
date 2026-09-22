@@ -7,6 +7,9 @@ import redis
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
+import asyncio
+
+from fastapi.responses import StreamingResponse
 
 app = FastAPI(title="Uptime Monitor API")
 
@@ -35,15 +38,21 @@ def to_json_safe(rows):
     # converts datetimes and other non-JSON types to strings
     return json.loads(json.dumps(rows, default=str))
 
+def current_user_id(
+    authorization: str | None = Header(default=None), token: str | None = None
+) -> int:
+    """Reads the Bearer token (header or ?token= query param) and returns the user's id."""
+    raw_token = None
+    if authorization and authorization.startswith("Bearer "):
+        raw_token = authorization.removeprefix("Bearer ")
+    elif token:
+        raw_token = token
 
-def current_user_id(authorization: str | None = Header(default=None)) -> int:
-    """Reads the Bearer token, verifies it, and returns the user's id."""
-    if not authorization or not authorization.startswith("Bearer "):
+    if not raw_token:
         raise HTTPException(status_code=401, detail="Missing bearer token")
 
-    token = authorization.removeprefix("Bearer ")
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(raw_token, JWT_SECRET, algorithms=["HS256"])
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -51,7 +60,6 @@ def current_user_id(authorization: str | None = Header(default=None)) -> int:
         raise HTTPException(status_code=401, detail="Wrong token type")
 
     return int(payload["user_id"])
-
 
 @app.get("/health")
 def health():
@@ -145,3 +153,24 @@ def monitor_results(
         (monitor_id, limit),
     )
     return {"monitor": to_json_safe(monitor)[0], "results": to_json_safe(results)}
+
+@app.get("/stream")
+async def stream(user_id: int = Depends(current_user_id)):
+    async def event_source():
+        pubsub = cache.pubsub()
+        pubsub.subscribe(f"updates:{user_id}")
+        try:
+            while True:
+                message = pubsub.get_message(timeout=15)
+                if message and message["type"] == "message":
+                    data = message["data"]
+                    if isinstance(data, bytes):
+                        data = data.decode()
+                    yield f"data: {data}\n\n"
+                else:
+                    yield ": keepalive\n\n"  # keeps the connection from timing out
+                await asyncio.sleep(0.5)
+        finally:
+            pubsub.close()
+
+    return StreamingResponse(event_source(), media_type="text/event-stream")

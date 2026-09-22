@@ -8,6 +8,7 @@ import {
   UnauthorizedError,
   authFetch,
   errorMessage,
+  getToken,
   isLoggedIn,
   logout,
 } from "@/lib/api";
@@ -73,9 +74,40 @@ export default function Home() {
       return;
     }
     load();
-    const id = setInterval(load, 5000);
+    const id = setInterval(load, 60000);
     return () => clearInterval(id);
   }, [load, router]);
+
+    useEffect(() => {
+    if (!isLoggedIn()) return;
+
+    const token = getToken();
+    const es = new EventSource(`${FASTAPI}/stream?token=${token}`);
+
+    es.onmessage = (event) => {
+      if (event.data.startsWith(":")) return; // keepalive comment lines
+      try {
+        const update = JSON.parse(event.data);
+        setMonitors((prev) =>
+          prev.map((m) =>
+            m.id === update.monitor_id
+              ? {
+                  ...m,
+                  is_up: update.is_up,
+                  status_code: update.status_code,
+                  response_time_ms: update.response_time_ms,
+                  checked_at: new Date().toISOString(),
+                }
+              : m
+          )
+        );
+      } catch {
+        // ignore malformed messages
+      }
+    };
+
+    return () => es.close();
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
