@@ -51,10 +51,6 @@ cp .env.example .env   # fill in your own secrets
 docker compose up -d --build
 ```
 
-- Dashboard: http://localhost:3000
-- Django admin: http://localhost:8001/admin
-- FastAPI docs: http://localhost:8000/docs
-
 ## Status
 
 Actively being developed. Current focus: deploying the full stack to
