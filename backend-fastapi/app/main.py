@@ -83,7 +83,7 @@ def health():
 
 STATUS_SQL = """
 select
-    m.id, m.name, m.url,
+    m.id, m.name, m.url, m.expected_status, m.keyword, m.interval_seconds,
     latest.is_up, latest.status_code, latest.response_time_ms, latest.checked_at,
     stats.uptime_pct, stats.avg_response_ms
 from monitors_monitor m
